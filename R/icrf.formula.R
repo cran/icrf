@@ -12,30 +12,33 @@
     m <- match.call(expand.dots = FALSE)
     ## Catch xtest and ytest in arguments.
     if (any(c("xtest", "ytest") %in% names(m)))
-        stop("xtest/ytest not supported through the formula interface")
+      stop("xtest/ytest not supported through the formula interface")
     names(m)[2] <- "formula"
     m <- m[!names(m) %in% c("data.type", "interval.label", "right.label", "currentstatus.label")]
     if (is.matrix(eval(m$data, parent.frame())))
-        m$data <- as.data.frame(data)
+      m$data <- as.data.frame(data)
+    # m$data[time.labels] = NULL
     m$... <- NULL
     m$na.action <- na.action
     m[[1]] <- as.name("model.frame")
     m <- eval(m, parent.frame())
-  #rn <- 1:nrow(m)
 
     # getting intervals
     noSurv <- length(formula) < 3
     if (noSurv) {
+      time.labels = c()
       if (data.type =="interval") {
         L <- data[, interval.label[1]]
         R <- data[, interval.label[2]]
+        time.labels = interval.label
       } else if (data.type =="right") {
-        L <- data[, currentstatus.label[1]]
-        status <- data[, currentstatus.label[2]]
+        L <- data[, right.label[1]]
+        status <- data[, right.label[2]]
         if (!is.logical(status))
           if (any(!unique(status) %in% c(0, 1)))
             stop("The status should be either logical or 0's and 1's")
         R = ifelse(status, L, Inf)
+        time.labels = right.label
       } else if (data.type =="currentstatus") {
         monitor <- data[, currentstatus.label[1]]
         status <- data[, currentstatus.label[2]]
@@ -44,10 +47,13 @@
             stop("The status should be either logical or 0's and 1's")
         L = ifelse(status, 0, monitor)
         R = ifelse(status, monitor, Inf)
+        time.labels = currentstatus.label
       } else {
         stop("data.type should be either 'interval', 'right', or 'currentstatus'")
       }
-    } else {
+    }
+
+    if (!noSurv) {
       y <- model.response(m, "numeric")
       y <- as.matrix(y)
       rightCens = y[ ,"status"] == 0
@@ -58,6 +64,8 @@
       L <- y[, "time1"]
       R <- y[, "time2"]
     }
+
+
     if (sum(L == R)) {
       if (is.null(epsilon)) epsilon <- min(min(diff(sort(unique(c(L, R)))))/10, 1e-10)
       R <- R + ifelse(L == R, epsilon, 0)

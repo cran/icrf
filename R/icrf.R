@@ -48,7 +48,8 @@
 #' row gets predicted at least a few times.'
 #' @param mtry Number of candidate predictors tried at each split.
 #' The default value is sqrt(p) where p is number of variables in \code{x}.
-#' @param split.rule Splitting rules. See details. The default is \code{"Wilcoxon"}.
+#' @param split.rule Splitting rules. See details. The default is
+#' \code{"Wilcoxon", or equivalently "GWRS"}.
 #' @param ERT If \code{ERT=TRUE} ERT algorithm applies. If \code{FALSE},
 #' a comprehensive greedy algorithm (Breiman's random forest algorithm) applies.
 #' @param uniformERT Only relevant when \code{ERT=TRUE}. If \code{uniformERT=TRUE},
@@ -137,7 +138,9 @@
 #'
 #' @details
 #' Four \code{split.rule} options are available: \code{Wilcoxon}, \code{logrank},
-#'  \code{PetoWilcoxon}, \code{PetoLogrank}. The first two are generalized
+#'  \code{PetoWilcoxon}, \code{PetoLogrank}. The aliases are
+#'  \code{GWRS}, \code{GLR}, \code{SWRS}, and \code{SLR}, respectively.
+#'  The first two are generalized
 #'  Wilcoxon-rank-sum test and generalized log-rank test proposed in Cho et al (2020+),
 #'  and the latter two are score-based Wilcoxon-rank-sum test and score-based
 #'  log-rank test proposed by Peto and Peto (1972) "Asymptotically efficient
@@ -193,7 +196,6 @@
 #'  \href{https://arxiv.org/abs/1912.09983}{Cho H., Jewell N. J., and Kosorok M. R. (2020+). "Interval censored
 #'  recursive forests"}
 #'
-#' @import Icens
 #' @importFrom grDevices rainbow
 #' @importFrom graphics axis barplot dotchart lines matplot mtext pairs par plot plot.default points legend
 #' @importFrom stats delete.response mad median model.frame model.response na.fail na.omit napredict

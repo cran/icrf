@@ -10,22 +10,51 @@
 \usage{
 icrf(x, ...)
 
-\method{icrf}{default}(x, L, R, tau = max(R[is.finite(R)]) * 1.5,
-  bandwidth = NULL, initialSmoothing = TRUE, quasihonesty = TRUE,
-  xtest = NULL, ytest = NULL, timeSmooth = NULL, nfold = 5L,
-  ntree = 500L, mtry = ceiling(sqrt(p)), split.rule = c("Wilcoxon",
-  "logrank", "PetoWilcoxon", "PetoLogrank"), ERT = FALSE,
-  uniformERT = ERT, returnBest = sampsize < n, imse.monitor = 1,
-  replace = !ERT, sampsize = ifelse(ERT, 0.95, 0.632) * nrow(x),
-  nodesize = 6L, maxnodes = NULL, importance = FALSE, nPerm = 1,
-  proximity, oob.prox = ifelse(sampsize == n & !replace, FALSE,
-  proximity), do.trace = FALSE, keep.forest = is.null(xtest),
-  keep.inbag = FALSE, ...)
+\method{icrf}{default}(
+  x,
+  L,
+  R,
+  tau = max(R[is.finite(R)]) * 1.5,
+  bandwidth = NULL,
+  quasihonesty = TRUE,
+  initialSmoothing = TRUE,
+  timeSmooth = NULL,
+  xtest = NULL,
+  ytest = NULL,
+  nfold = 5L,
+  ntree = 500L,
+  mtry = ceiling(sqrt(p)),
+  split.rule = c("Wilcoxon", "logrank", "PetoWilcoxon", "PetoLogrank", "GWRS", "GLR",
+    "SWRS", "SLR"),
+  ERT = FALSE,
+  uniformERT = ERT,
+  returnBest = sampsize < n,
+  imse.monitor = 1,
+  replace = !ERT,
+  sampsize = ifelse(ERT, 0.95, 0.632) * n,
+  nodesize = 6L,
+  maxnodes = NULL,
+  importance = FALSE,
+  nPerm = 1,
+  proximity,
+  oob.prox = ifelse(sampsize == n & !replace, FALSE, proximity),
+  do.trace = FALSE,
+  keep.forest = is.null(xtest),
+  keep.inbag = FALSE,
+  ...
+)
 
-\method{icrf}{formula}(formula, data = NULL, data.type = c("interval",
-  "right", "currentstatus"), interval.label = c("L", "R"),
-  right.label = c("T", "status"), currentstatus.label = c("monitor",
-  "status"), ..., na.action = na.fail, epsilon = NULL)
+\method{icrf}{formula}(
+  formula,
+  data = NULL,
+  data.type = c("interval", "right", "currentstatus"),
+  interval.label = c("L", "R"),
+  right.label = c("T", "status"),
+  currentstatus.label = c("monitor", "status"),
+  ...,
+  na.action = na.fail,
+  epsilon = NULL
+)
 
 \method{print}{icrf}(x, ...)
 }
@@ -43,22 +72,22 @@ minimum nonzero interval length and 1e-10) is added.}
 \item{bandwidth}{a positive number. The bandwidth of the kernel smoothing. For faster computing,
 set \code{bandwidth = 0} for no smoothing.}
 
-\item{initialSmoothing}{if \code{TRUE}, the initial survival curve used for
-interval-conditional survival probability estimate is smoothed using the Gaussian kernel.}
-
 \item{quasihonesty}{if \code{TRUE}, the terminal node prediction is given by the NPMLE of the
 interval data. If \code{FALSE}, the terminal node prediction is given by the average of the
 conditional probabilities (exploitative).}
+
+\item{initialSmoothing}{if \code{TRUE}, the initial survival curve used for
+interval-conditional survival probability estimate is smoothed using the Gaussian kernel.}
+
+\item{timeSmooth}{a numeric vector of time points at which the smoothed
+survival curves are estimated. It should be in an increasing order.
+If \code{null}, a set of distinct interval end points is used.}
 
 \item{xtest}{a dataset or matrix of predictors for the test dataset.}
 
 \item{ytest}{a true survival curve for the test set in a form of the dataframe or matrix.
 The number of rows is the same as \code{xtest} and each column corresponds to the
 time points of \code{timeSmooth}.}
-
-\item{timeSmooth}{a numeric vector of time points at which the smoothed
-survival curves are estimated. It should be in an increasing order.
-If \code{null}, a set of distinct interval end points is used.}
 
 \item{nfold}{Number of forests to iterate. In practice, numbers between 5 and 10 is reasonable.}
 
@@ -68,7 +97,8 @@ row gets predicted at least a few times.'}
 \item{mtry}{Number of candidate predictors tried at each split.
 The default value is sqrt(p) where p is number of variables in \code{x}.}
 
-\item{split.rule}{Splitting rules. See details. The default is \code{"Wilcoxon"}.}
+\item{split.rule}{Splitting rules. See details. The default is
+\code{"Wilcoxon", or equivalently "GWRS"}.}
 
 \item{ERT}{If \code{ERT=TRUE} ERT algorithm applies. If \code{FALSE},
 a comprehensive greedy algorithm (Breiman's random forest algorithm) applies.}
@@ -194,7 +224,9 @@ by Andy Liaw and Matthew Wiener. (Quoted statements are from
 }
 \details{
 Four \code{split.rule} options are available: \code{Wilcoxon}, \code{logrank},
- \code{PetoWilcoxon}, \code{PetoLogrank}. The first two are generalized
+ \code{PetoWilcoxon}, \code{PetoLogrank}. The aliases are
+ \code{GWRS}, \code{GLR}, \code{SWRS}, and \code{SLR}, respectively.
+ The first two are generalized
  Wilcoxon-rank-sum test and generalized log-rank test proposed in Cho et al (2020+),
  and the latter two are score-based Wilcoxon-rank-sum test and score-based
  log-rank test proposed by Peto and Peto (1972) "Asymptotically efficient

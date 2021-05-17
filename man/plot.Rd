@@ -5,8 +5,7 @@
 \alias{plot.icrf}
 \title{icrf IMSE rate plot}
 \usage{
-\method{plot}{icrf}(x, type = "l", main = deparse(substitute(x)),
-  oob = FALSE, ...)
+\method{plot}{icrf}(x, type = "l", main = deparse(substitute(x)), oob = FALSE, ...)
 }
 \arguments{
 \item{x}{an object of \code{icrf} class.}
@@ -43,8 +42,6 @@ set.seed(1)
 samp <- sample(1:dim(rat2)[1], 200)
 rats.train <- rat2[samp, ]
 rats.test <- rat2[-samp, ]
-L = ifelse(rats.train$tumor, 0, rats.train$survtime)
-R = ifelse(rats.train$tumor, rats.train$survtime, Inf)
 # Note that this is a toy example. Use a larger ntree and nfold in practice.
 set.seed(2)
 \dontshow{

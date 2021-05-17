@@ -65,7 +65,8 @@ void predictSurvTree(double *x, int nsample, int mdim, int ntime,
                     int *splitVar, int treeSize, int *cat, int maxcat,
                     int *nodex, int *nrnodes,
                     int ntimeSm, double *ypredSm, double *nodepredSm, int Sm);
-void ksmooth(double *x, double *y, int n, double *xp, double *yp, int np, double bw);
+void ksmooth(double *x, double *y, int n, double *xp, double *yp, int np, double bw,
+             int sumToOne, double cdfAtTau);
 void interpolate(double *x, double *y, int n, double *xp, double *yp, int np);
 void pIndex (double *ivec, double *jcum, double *auc, int ntime);
 void logRank(double* N1j, double* N2j, double* O1, double* numJ, double* denJ, int ntime, double* stat);

@@ -52,7 +52,7 @@ void findPetoSplit(double *x, int *jdex, double *peto,
                    double *ubest, int *ndendl, int *jstat, int mtry,
                    int nodecnt, int *cat, int nthsize, int ert, int uniErt) {
   int last, ncat[MAX_CAT], icat[MAX_CAT], lc, nl, nr, npopl, npopr, tieVar, tieVal;
-  int i, j, kv, l, t, r = 0, ertr = 1, ertrTie, *mind, *ncase, mTried = 0;
+  int i, j, kv, l, r = 0, ertr = 1, ertrTie, *mind, *ncase, mTried = 0;
   double *xt, *ut, *v, *yl, sumcat[MAX_CAT], avcat[MAX_CAT], tavcat[MAX_CAT], ubestt;
   double crit, critmax, critvar, suml, sumr, sumnode = 0.0, d, critParent, rUnif = 0.0;
   //nodepred = ntime x nrnodes x ntree

@@ -64,10 +64,10 @@
 #'   icrf(Surv(L, R, type = "interval2") ~ dose.lvl + weight + male + cage.no,
 #'        data = rat2, ntree = 2, nfold = 2)
 #'
-#' measure(rats.icrf$predicted.Sm, timepoints = rats.icrf$time.points,
+#' measure(rats.icrf$predicted.Sm, timepoints = rats.icrf$time.points.smooth,
 #'         tau = rats.icrf$tau, method = "imse", L = L, R = R)
 #' }
-#' @author Hunyong Cho hunycho@live.unc.edu, based on codes and documents of
+#' @author Hunyong Cho hunycho@live.unc.edu, based on the code and the documents of
 #' \code{randomForest} by Andy Liaw and Matthew Wiener.
 #'
 #' @references

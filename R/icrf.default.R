@@ -5,27 +5,20 @@ mylevels <- function(x) if (is.factor(x)) levels(x) else 0
 #' @export
 "icrf.default" <-
     function(x, L, R, tau = max(R[is.finite(R)]) * 1.5 , bandwidth = NULL,
-             initialSmoothing = TRUE, quasihonesty = TRUE,
-             # initialSmoothing: Smoothing marginal survival curve before the first forest iteration?
-             # quasihonesty (updateNPMLE): Getting NPMLE instead of averaging conditional survivals after tree building.
-             #   if FALSE, then average the conditional probs (exploitative).
-             xtest=NULL, ytest=NULL, timeSmooth=NULL,
+             quasihonesty = TRUE, initialSmoothing = TRUE,
+             timeSmooth = NULL, xtest = NULL, ytest = NULL,
              nfold = 5L, ntree=500L, mtry =  ceiling(sqrt(p)), #max(floor(ncol(x)/3), 1),
-             split.rule = c("Wilcoxon", "logrank", "PetoWilcoxon", "PetoLogrank"),
+             split.rule = c("Wilcoxon", "logrank", "PetoWilcoxon", "PetoLogrank",
+                            "GWRS", "GLR", "SWRS", "SLR"),
              ERT = FALSE, uniformERT = ERT, returnBest = sampsize < n, imse.monitor = 1,
-             # if returnBest == TRUE, best iteration in terms of imse.oob (type = imse.monitor) is finally returned.
-             # if       FALSE, the last fold is returned.
-             # by default, TRUE when oob sample is available (sampsize < n).
-             # imse.monitor: which type of imse is used for bestfold monitoring.
-             replace = !ERT, sampsize = ifelse(ERT, 0.95, .632) *nrow(x),
+             replace = !ERT, sampsize = ifelse(ERT, 0.95, .632) * n,
              nodesize = 6L, maxnodes = NULL,
-             importance = FALSE, nPerm=1, # localImp=FALSE,
+             importance = FALSE, nPerm=1,
              proximity, oob.prox = ifelse(sampsize == n & !replace, FALSE, proximity),
              do.trace=FALSE,
              keep.forest = is.null(xtest),
              keep.inbag = FALSE, ...) {
       # note: instead of `y`, `L` and `R`
-
     time.record = data.frame(begin = Sys.time(), end = NA, elapsed = NA)
     n <- nrow(x)
     p <- ncol(x)
@@ -35,14 +28,19 @@ mylevels <- function(x) if (is.factor(x)) levels(x) else 0
     x.col.names <- if (is.null(colnames(x))) 1:ncol(x) else colnames(x)
     if (is.null(colnames(x))) {colnames(x) <- x.col.names}
     sampsize = ceiling(sampsize)
-
+    if (replace && (sampsize > n)) stop("sampsize cannot be greater than n when replace is TRUE.")
     # x$obs = seq_len(n)
     # dataset <- dataset[, c(x.col.names, left, right, "obs")] # make sure no other variables come into play
     # need = ceiling(n/nmin) <- nrnodes?
 
     # split.rule
     split.rule <- match.arg(split.rule)
-    split.rule.no <- which(c("Wilcoxon", "logrank", "PetoLogrank", "PetoWilcoxon") %in% split.rule)
+    split.rule.no <- which(c("Wilcoxon", "logrank", "PetoWilcoxon", "PetoLogrank",
+                             "GWRS", "GLR", "SWRS", "SLR")
+                           %in% split.rule)
+    # deals with the aliases
+    split.rule.no <- (split.rule.no - 1) %% 4 + 1
+    split.rule    <- c("Wilcoxon", "logrank", "PetoWilcoxon", "PetoLogrank")[split.rule.no]
 
     imse.monitor <- as.integer(imse.monitor)
     if (!imse.monitor %in% 1:2) stop("imse.type.monitor should be eiter 1 or 2")
@@ -182,24 +180,42 @@ mylevels <- function(x) if (is.factor(x)) levels(x) else 0
 
     # time_interest is for npmle, prob calculation. not for smoothing
     time_interest = sort(unique(c(t0, L, R, tau)))
-    time_interest <- c(time_interest[time_interest <= tau], Inf)
     ntime <- length(time_interest)
+
+    # Remove virtual redundancy
+    for (i in 1:(ntime-1)) {
+      # If there are virtually redundant time points, nullify the smaller ones.
+      if (any(time_interest[i] + 1e-6 >= time_interest[(i+1):ntime])) time_interest[i] = 0
+    }
+    time_interest = sort(unique(time_interest))
+
+    time_interest <- c(time_interest[time_interest <= tau], Inf)
+    ntime <- length(time_interest) # renew.
     t.names <- paste0("t", seq_along(time_interest))
     names(time_interest) <- t.names
-    npmle.smooth <- isdSm (LR = cbind(L, R), grid.smooth = time_interest,
-                           btt = c(bandwidth = ifelse(initialSmoothing, 0, 0), t0 = t0, tau = tau))
+
     npmle.smooth <- isdSm (LR = cbind(L, R), grid.smooth = time_interest,
                            btt = c(bandwidth = ifelse(initialSmoothing, NA, 0), t0 = t0, tau = tau))
     npmle.smooth <- data.frame(x = c(time_interest[time_interest <= tau], Inf),
                                y = c(npmle.smooth[time_interest <= tau], 1))
     # time_interest = npmle.smooth$x
+    # tmp.data <<- list(LR = cbind(L, R), grid.smooth = time_interest,
+    #                         btt = c(bandwidth = ifelse(initialSmoothing, NA, 0), t0 = t0, tau = tau))
     # tmp.npmle.smooth <<- npmle.smooth
 
     if (is.null(bandwidth)) {
+      npmle.discrete <- isdSm (LR = cbind(L, R), grid.smooth = time_interest,
+                             btt = c(bandwidth = 0, t0 = t0, tau = tau))
+      npmle.discrete <- data.frame(x = c(time_interest[time_interest <= tau], Inf),
+                                   y = c(npmle.discrete[time_interest <= tau], 1))
+
       iqr =
-        lin.interpolate(0.75, npmle.smooth$y, npmle.smooth$x)["y.interpolate"] -
-        lin.interpolate(0.25, npmle.smooth$y, npmle.smooth$x)["y.interpolate"]
-      bandwidth = 0.5 * iqr * n^(-0.2)
+        lin.interpolate(0.75, npmle.discrete$y, npmle.discrete$x)["y.interpolate"] -
+        lin.interpolate(0.25, npmle.discrete$y, npmle.discrete$x)["y.interpolate"]
+      if (iqr > tau/2) iqr = tau/2
+      bandwidth = iqr * nodesize^(-0.2)  # the bandwidth has been changed from n to nodesize (Jan 4, 2021)
+      # bandwidth = as.numeric(iqr) * nodesize^-0.5 # the bandwidth has been changed from n to nodesize (May 10, 2021)
+      # cat("iqr-nodesize-bw: ", iqr, " ", nodesize, " ", bandwidth, "\n")
     }
     # smooth2nd = (bandwidth > 0)
 
@@ -210,7 +226,7 @@ mylevels <- function(x) if (is.factor(x)) levels(x) else 0
     # interval.prob.mat <- interval.prob.mat[, time_interest <= tau]
     # interval.prob.mat <- cbind(interval.prob.mat, 1 - apply(interval.prob.mat, 1, sum))
     interval.prob.mat <- data.matrix(interval.prob.mat)
-
+    # tmp.interval.prob.mat <<- interval.prob.mat
     if (dim(interval.prob.mat)[2] != ntime) stop("number of columns of interval.prob.mat and ntime do not match")
     r.inf = is.infinite(R)  # Inf index for R
     lr = c(L, R)
@@ -344,11 +360,11 @@ mylevels <- function(x) if (is.factor(x)) levels(x) else 0
       rfout$ypred[rfout$oob.times == 0, ] <- NA
     }
     time.record["end"] <- Sys.time()
-    time.record["elapsed"] <- time.record["end"] - time.record["begin"]
+    time.record["elapsed"] <- difftime(time.record[["end"]], time.record[["begin"]], units = "min")
     out <- list(call = cl,
-                method = c(split.rule = split.rule, ERT = ERT, subsampleRatio = sampsize/n,
-                           quasihonesty = ifelse(quasihonesty, "quasihonesty", "exploitative"),
-                           bandwidth = as.numeric(bandwidth)),
+                method = data.frame(split.rule = split.rule, ERT = ERT, subsampleRatio = sampsize/n,
+                                    quasihonesty = ifelse(quasihonesty, "quasihonesty", "exploitative"),
+                                    bandwidth = as.numeric(bandwidth)),
                 bestFold = data.frame(bestFold = ifelse(rfout$bestFold, rfout$bestFold, NA),
                                       imse.type = imse.monitor,
                                       imse.best = if (returnBest) rfout$imse[rfout$bestFold + (imse.monitor - 1) * nfold] else NA),

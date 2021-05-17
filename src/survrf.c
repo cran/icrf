@@ -58,9 +58,9 @@ void survRF(double *x, double *LR, double *prob, int *xdim, double *timepoints,
     double *probb, *xtmp, *xb, *survTr, *survTrSm, *stree, *tgini,
     *probCum, *pIndexMat, *pIndexMatb,
     *lrb, *pf, *intmap, *peto, *petob, avTime,
-    *survts, *timediff, *timediffSm, *probTmpSm, *probTmpSm2, *timepoints2;
+    *survts, *timediff, *timediffSm, *probTmpSm, *probTmpSm2, *timepoints2, cdfAtTau;
     //avnodeSmCum, multiplier; //*surv, *survSm,
-    double *yp2, ypCum = 0.0, yp2Cum = 0.0, ratio = 1.0; //non-smoothed vector with the same gridline.
+    //double *yp2, ypCum = 0.0, yp2Cum = 0.0, ratio = 1.0, cdfAtTau; //non-smoothed vector with the same gridline.
 
     int k, m, mr, n, t, nOOB, j, idx, ntest, last, ktmp, nPerm,
         nNAN1, nNAN2, nNAN1b, nNAN2b,  nNAN1bPerm, nNAN2bPerm,
@@ -123,8 +123,7 @@ Rprintf("\n");
     //survSm     = (double *) S_alloc(nsample * ntimeSm, sizeof(double));
     timediff   = (double *) S_alloc(ntime - 1, sizeof(double));
     timediffSm = (double *) S_alloc(ntimeSm - 1, sizeof(double));
-    yp2        = (double *) S_alloc(ntimeSm, sizeof(double));
-
+    //yp2        = (double *) S_alloc(ntimeSm, sizeof(double));
 
     //if *returnBest = TRUE, then keep record at the best iter, and plug them back in the end.
     BsurvPTr = (double *) S_alloc(*returnBest ? nsample * ntime : 1, sizeof(double));
@@ -422,7 +421,9 @@ Rprintf("%d ", j+1);
 		} else { /* sampling w/o replacement */
 			for (n = 0; n < nsample; ++n) nind[n] = n;
 			last = nsample - 1;
+//Rprintf("nsample = %d, sampsize = %d\n n = ", nsample, *sampsize);
 			for (n = 0; n < *sampsize; ++n) {
+//Rprintf(" %d", n);
 				ktmp = (int) (unif_rand() * (last+1));
                 k = nind[ktmp];
                 swapInt(nind[ktmp], nind[last]);
@@ -488,7 +489,6 @@ Rprintf("%d ", j+1);
   }
 }*/
 
-
 		}
 
 		if (keepInbag) {
@@ -509,110 +509,76 @@ Rprintf("%d ", j+1);
 		  for (cur = 0; cur < *nrnodes; ++cur) {
 		    if (nodestatus[cur + idx] == NODE_TERMINAL) {
 //Rprintf("\n(probTmpSm2, avnode) = \n");
+//if (cur < 3) Rprintf("\n(cur = %d) \n", cur);
 		      // probTmpSm2 is CDF with extended time frame for smoothing.
-		      for (t = 1; t < ntime - 1; ++t) {
+		      for (t = 0; t < ntime - 1; ++t) {
 		        // < ntime - 1 b/c Inf not included but only upto tau.
 		        // >= 1 b/c at t0 prob is always 0, but it needs to be replaced with some prob btw t0 and t1.
-		        probTmpSm2[t + timeInc] = avnode[t + cur* ntime + idx * ntime]/timediff[t-1];
-		        //if (cur == 3) Rprintf("%d: (%2.3f, %2.3f)\n", t, probTmpSm2[t + timeInc], avnode[t + cur* ntime + idx * ntime]);
-		        //if (t<20) Rprintf("%d: (%2.3f, %2.3f) ", t, probTmpSm2[t + timeInc], avnode[t + cur* ntime + idx * ntime]);
-		        //if (t<20) Rprintf(" (%2.3f)\n", probTmpSm2[t - 1 + timeInc] - avnode[t + cur* ntime + idx * ntime]);
+		        probTmpSm2[timeInc + t + 1] = avnode[t + cur* ntime + idx * ntime]/(timediff[t] < 0.0001? 10000.0: timediff[t]);
+//if (cur == 93) Rprintf("%d: (%2.3f, %2.3f)\n", t, probTmpSm2[t + timeInc], avnode[t + cur* ntime + idx * ntime]);
+//if (cur == 93) Rprintf("%d: (%2.3f, %2.3f) ", timeInc + t + 1, probTmpSm2[timeInc + t + 1], avnode[t + cur* ntime + idx * ntime]);
+//if (cur == 93) Rprintf(" (%2.3f)\n", probTmpSm2[timeInc + t + 1] - avnode[t + cur* ntime + idx * ntime]);
+//if (cur == 93) Rprintf("%d:  (%2.3f, %2.3f, %2.3f) ",timeInc + t + 1 ,  probTmpSm2[timeInc + t + 1], avnode[t + cur* ntime + idx * ntime], timediff[t]);
 		      }
-		      for (t = 0; t < timeInc; ++t) { // only updated timeInc - 1 (max_timeInc = ntime -2) b/c prob[0] is not needed.
-		        probTmpSm2[timeInc - t] = avnode[t + 1 + cur* ntime + idx * ntime]/timediff[t];
+//Rprintf("\n fore-mirror\n");
+		      for (t = 0; t < timeInc + 1; ++t) { // only updated timeInc - 1 (max_timeInc = ntime -2) b/c prob[0] is not needed.
+		        probTmpSm2[timeInc - t] = avnode[t + cur* ntime + idx * ntime]/(timediff[t] < 0.0001? 10000.0: timediff[t]);
+//if (cur == 93 & t < 10 | t > timeInc - 3) Rprintf("%d:  (%2.3f, %2.3f, %2.3f) ", timeInc - t,  probTmpSm2[timeInc - t], avnode[t + cur* ntime + idx * ntime], timediff[t]);
 		      }
+//Rprintf("\n hind-mirror\n");
 		      double lambda = - *tau / log(avnode[ntime - 1 + cur* ntime + idx * ntime]);
-		      for (t = timeInc + (ntime - 1); t <= timeInc + (ntime - 1) + timeInc2; ++t) {
+		      if (avnode[ntime - 1 + cur* ntime + idx * ntime] < 1e-10) lambda = 0.0; // when terminal time probability is negative, it gives nan. Force it to zero. Resulting probTmpSm2 = 0.0.
+
+		      for (t = timeInc + ntime; t < timeInc + ntime + timeInc2; ++t) {
 		        //  probTmpSm2[t] = avnode[2 * ntime - 3 - t + timeInc + cur* ntime + idx * ntime];
 		        probTmpSm2[t] = (exp(- timepoints2[t - 1]/lambda) -  exp(- timepoints2[t]/lambda))/avTime;
 		      }
-/*Rprintf("\nSmth..upto ntime+ 2Inc before smoothing\n");
-//for (t = 0; t < ntime2; ++t) {
-for (t = 0; t < 100; ++t) {
-  Rprintf("%2.3f ",probTmpSm2[t]);
-}
-Rprintf("\n avnode after smoothing = ");*/
+          cdfAtTau = 1.0 - avnode[ntime - 1 + cur* ntime + idx * ntime]; // needed for precision
+		      // probTmpSm2[t+timeInc] * timediff[t-1]; is not precise and makes gradual deviation.
+		      // This makes genuine CDF (CDF at tau = 1.0) not ending up with 1 but something like 0.94.
+		      // The resulting smoothed curve is thus inflated.
+		      // Alternative is using long double instead of double for everything involved.
+
+/*if (cur == 59) {
+  Rprintf("\n\navnode before smoothing\n");
+  Rprintf("timepoints2,  probTmpSm2, avnode,  cumTmp, cumAvnode\n");
+  double cumTmp = 0.0, cumAvnode = 0.0;
+  //for (t = 0; t < ntime2; ++t) {
+  for (t = timeInc; t < timeInc + ntime + 2 & timepoints2[t] < 2; ++t) {
+    cumTmp += probTmpSm2[t] * timediff[t-1-timeInc];
+    cumAvnode += avnode[t-timeInc + cur* ntime + idx * ntime];
+    Rprintf("%2.3f,   %2.3f,  %2.3f,  %2.3f,  %2.3f  \n",
+            timepoints2[t], probTmpSm2[t], avnode[t-timeInc + cur* ntime + idx * ntime],
+            cumTmp, cumAvnode);
+  }
+  Rprintf("avnode last = %2.4f\n", avnode[ntime - 1 + cur* ntime + idx * ntime]);
+} */
 
 // This if cur==3 should be removed!!!!!!!!!!!
-// if (cur == 3)
+// if (cur == 2)
 //Rprintf("ntime2 = %d, ntime = %d, timepoints2[0] = %2.3f, timepoint2[ntime2] = %2.3f ",
 //        ntime2, ntime, timepoints2[0], timepoints2[ntime2-1]);
           //BDRksmooth(timepoints2, probTmpSm2, ntime2, timepoints, probTmpSm, ntime, *bw);
-          ksmooth(timepoints2, probTmpSm2, ntime2, timepointsSm, probTmpSm, ntimeSm, *bw);
-
-
-/*if (j == 0 && cur == 18) {
-  Rprintf("\n original survival ");
-  for (t = 0; t < ntime2; ++t) {
-    Rprintf("%2.3f ",probTmpSm2[t]);
-  }
-  Rprintf("\n smoothed survival ");
-  for (t = 0; t < ntimeSm; ++t) {
-    Rprintf("%2.3f ",probTmpSm[t]);
-  }
-}*/
-
-
-
-/*Rprintf("\ntimepoints2\n");
-for (t = 0; t < ntime2; ++t) {
-  Rprintf("%2.3f ",timepoints2[t]);
-}
-Rprintf("\ntimepoints\n");
-for (t = 0; t < ntime; ++t) {
-  Rprintf("%2.3f ",timepoints[t]);
-}*/
-
-// cumm = 1.0;
+          ksmooth(timepoints2, probTmpSm2, ntime2, timepointsSm, probTmpSm, ntimeSm, *bw, 1, cdfAtTau);
+//Rprintf("cur = %d\n", cur);
+//if (cur >= 59) return;
+//if (cur == 59) {
+//  Rprintf("\n\n\n avnode after smoothing = ");
+//  //for (t = 0; t < ntime2; ++t) {
+//  for (t = 0; t < ntimeSm; ++t) {
+//    Rprintf("(%2.3f: %2.2f)  ",timepointsSm[t], probTmpSm[t]);
+//  }
+//  Rprintf("\n");
+//}
           for (t = 1; t < ntimeSm - 1; ++t) {
             avnodeSm[t + cur * ntimeSm + idx * ntimeSm] = probTmpSm[t] * timediffSm[t-1];
           }
-          if (*bw > 0.0) { // getting the normalization ratio
-            ksmooth (timepoints2, probTmpSm2, ntime2, timepointsSm, yp2, ntimeSm, 0.0);
 
-            yp2Cum = 0.0;
-            ypCum = 0.0;
-            for (t = 0; t < ntimeSm - 1; ++t) {
-              yp2Cum += yp2[t] * timediffSm[t - 1];
-              ypCum += avnodeSm[t + cur * ntimeSm + idx * ntimeSm];
-            }
-            ratio = yp2Cum / ypCum;
-/*if (fold == 0 && j == 0 && cur == 21) {
-
-  Rprintf("\navnode non-Smooth original\n");
-  for (t = 0; t < ntime; ++t) {
-    Rprintf("%2.2f ",  avnode[t + cur * ntime + idx * ntime]);
-  }
-  Rprintf("\navnode non-Smooth grid\n");
-  for (t = 0; t < ntimeSm; ++t) {
-    Rprintf("%2.2f ",  yp2[t] * timediffSm[t - 1]);
-  }
-  Rprintf("fold = %d, tree = %d, cur = %d, avnodeSm\n",
-          fold + 1, j + 1, cur + 1);
-  for (t = 0; t < ntimeSm; ++t) {
-    Rprintf("%2.2f ", avnodeSm[t + cur * ntimeSm + idx * ntimeSm]);
-  }
-  Rprintf("\n ratio = %2.3f\n", ratio);
-}*/
-            if (ypCum <= 0.0) ratio = 0.0;
-/*if (isnan(ratio)) {
-  Rprintf("fold = %d, tree = %d, cur = %d, yp2Cum = %2.3f, ypCum = %2.3f\n",
-          fold + 1, j + 1, cur + 1, yp2Cum, ypCum);
-  //for (t = 1; t < ntimeSm - 1; ++t) {
-  //  Rprintf("%2.2f ", avnodeSm[t + cur * ntimeSm + idx * ntimeSm]);
-  //}
-  Rprintf("\n");
-}*/
-            for (t = 1; t < ntimeSm - 1; ++t) {
-              avnodeSm[t + cur * ntimeSm + idx * ntimeSm] *= ratio;
-            }
-            avnodeSm[ntimeSm - 1 + cur * ntimeSm + idx * ntimeSm] = 1.0 - yp2Cum;
-          } else {
-            avnodeSm[ntimeSm - 1 + cur * ntimeSm + idx * ntimeSm] = 1.0;
-            for (t = 1; t < ntimeSm - 1; ++t) {
-              avnodeSm[ntimeSm - 1 + cur * ntimeSm + idx * ntimeSm] -=
-                avnodeSm[t + cur * ntimeSm + idx * ntimeSm]; //yp[last] is the residual.
-            }
+          // filling in the residual (the last piece)
+          avnodeSm[ntimeSm - 1 + cur * ntimeSm + idx * ntimeSm] = 1.0;
+          for (t = 1; t < ntimeSm - 1; ++t) {
+            avnodeSm[ntimeSm - 1 + cur * ntimeSm + idx * ntimeSm] -=
+              avnodeSm[t + cur * ntimeSm + idx * ntimeSm]; //yp[last] is the residual.
           }
 
 
@@ -717,6 +683,7 @@ Rprintf("nodex\n");*/
 
 		// predict testset data with the current tree
 		if (*testdat) {
+//Rprintf("\nTESTSET NOW:\n");
 			predictSurvTree(xts, ntest, mdim, ntimeSm, lDaughter + idx,
 						   rDaughter + idx, nodestatus + idx, stree,
                            upper + idx, avnodeSm + idx*ntimeSm,
@@ -913,10 +880,9 @@ Rprintf("nodex\n");*/
     /* Updatng the conditional probabilities for the next Forest loop*/
     for (n = 0; n < nsample; ++n) {
       sampleSum = 0.0;
-      prob[0 + n * ntime] = 0.0;
-      for (t = 1; t < ntime; ++t) {
-        if ((LR[n] <= timepoints[t]) && (LR[nsample + n] > timepoints[t])) {
-          prob[t + n * ntime] = survPTrNO[n + (t-1) * nsample] - survPTrNO[n + t * nsample] ;
+      for (t = 0; t < ntime; ++t) {
+        if ((LR[n] <= timepoints[t]) && ((LR[nsample + n] == 1.0/0.0)| (LR[nsample + n] > timepoints[t]))) {
+          prob[t + n * ntime] = (t==0? 1.0: survPTrNO[n + (t-1) * nsample]) - survPTrNO[n + t * nsample] ;
           sampleSum += prob[t + n * ntime];
         } else {
           prob[t + n * ntime] = 0.0;

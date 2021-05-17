@@ -4,7 +4,8 @@
 \name{rat2}
 \alias{rat2}
 \title{Rat tumor data}
-\format{A data frame with 319 rows and 6 variables:
+\format{
+A data frame with 319 rows and 6 variables:
 \describe{
  \item{dose.lvl}{'dose level of PBB (coded 0-5).'}
  \item{weight}{'initial weight in grams.'}
@@ -12,7 +13,8 @@
  \item{survtime}{'survival time (age) in weeks.'}
  \item{tumor}{'response indicator (1 = hyperplasia present, 0 = hyperplasia absent).'}
  \item{male}{The gender (0 = female, 1 = male).}
-}}
+}
+}
 \usage{
 data(rat2)
 }

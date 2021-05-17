@@ -4,8 +4,15 @@
 \alias{survplot}
 \title{'Plotting individual survival curves'}
 \usage{
-survplot(x, i, smooth = TRUE, timepoints = NULL,
-  title = "Estimated survival curve", suppress.inf.time = TRUE, ...)
+survplot(
+  x,
+  i,
+  smooth = TRUE,
+  timepoints = NULL,
+  title = "Estimated survival curve",
+  suppress.inf.time = TRUE,
+  ...
+)
 }
 \arguments{
 \item{x}{an object of class \code{icrf} or a survival matrix with rows

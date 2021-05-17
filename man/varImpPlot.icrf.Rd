@@ -7,9 +7,15 @@
 \usage{
 varImpPlot(x, ...)
 
-\method{varImpPlot}{icrf}(x, sort = TRUE, n.var = min(30,
-  nrow(x$importance)), type = NULL, forest = NULL,
-  main = deparse(substitute(x)), ...)
+\method{varImpPlot}{icrf}(
+  x,
+  sort = TRUE,
+  n.var = min(30, nrow(x$importance)),
+  type = NULL,
+  forest = NULL,
+  main = deparse(substitute(x)),
+  ...
+)
 }
 \arguments{
 \item{x}{'an object of class' \code{icrf}}

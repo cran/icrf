@@ -533,7 +533,7 @@ void predictSurvTree(double *x, int nsample, int mdim, int ntime,
       }
     }
     /* terminal node: assign prediction and move on to next */
-    //Rprintf("predicting at %dth node: ", k);
+//Rprintf("predicting at %dth node: ", k);
     survPred[i + 0 * nsample] = 1.0 - nodepred[0 + k * ntime];
     for (t = 1; t < ntime; ++t) {
       //Rprintf("%f ", nodepred[t + k * ntime]);

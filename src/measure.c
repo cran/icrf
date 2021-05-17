@@ -72,7 +72,7 @@ void ibss(double* LR, double* surv, double* timepoints, double* timediff, int* i
       // Getting SL and SR
       SL = 1.0;
       SR = 0.0; //default values
-      for (t = 0; t < ntime - 1; ++t) {
+      for (t = 0; (t < ntime - 1) & (timepoints[t] <= *tau); ++t) {
         if (LR[n] >= timepoints[t] &&  LR[n] < timepoints[t + 1]) {
           SL = surv[n + t * nsample];
         } else if (LR[n + nsample] > timepoints[t] &&  LR[n + nsample] <= timepoints[t + 1]) {
@@ -85,7 +85,7 @@ void ibss(double* LR, double* surv, double* timepoints, double* timediff, int* i
         b = 1.0 / (SL - SR);
       }
 
-      for (t = 1; t < ntime; ++t) {
+      for (t = 1; (t < ntime) & (timepoints[t] <= *tau); ++t) {
         if (isfinite(timediff[t-1])==0) break;
         if (timepoints[t] <= LR[n]) {
           err1 += timediff[t-1] * (1.0 - surv[n + t * nsample]) * (1.0 - surv[n + t * nsample]);

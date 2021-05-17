@@ -5,28 +5,41 @@
 SEXP getListElement(SEXP list, const char *str)
 {
   SEXP elmt = R_NilValue, names = getAttrib(list, R_NamesSymbol);
-
   for (R_len_t i = 0; i < length(list); i++)
+  {
     if(strcmp(CHAR(STRING_ELT(names, i)), str) == 0) {
       elmt = VECTOR_ELT(list, i);
       break;
     }
-    return elmt;
+  }
+  return elmt;
 }
 
 SEXP EMICM (SEXP A) {
   SEXP statsPackage;
-  PROTECT(
-    statsPackage = eval( lang2( install("getNamespace"),
-                                ScalarString(mkChar("Icens")) ),
-                                R_GlobalEnv
-    )
-  );
+  SEXP e;
+  PROTECT(e = lang2(install("getNamespace"), ScalarString(mkChar("icrf"))));
+  PROTECT(statsPackage = eval(e, R_GlobalEnv));
 
   SEXP npmle;
-  PROTECT(npmle = eval(lang2(install("EMICM"), A), statsPackage));
-  UNPROTECT(2);
+  SEXP a;
+  PROTECT(a = lang2(install("EMICM"), A));
+  PROTECT(npmle = eval(a, statsPackage));
+  UNPROTECT(4);
   return(npmle);
+
+  // SEXP statsPackage;
+  // PROTECT(
+  //   statsPackage = eval( lang2( install("getNamespace"),
+  //                               ScalarString(mkChar("icrf")) ),
+  //                               R_GlobalEnv
+  //   )
+  // );
+  //
+  // SEXP npmle;
+  // PROTECT(npmle = eval(lang2(install("EMICM"), A), statsPackage));
+  // UNPROTECT(2);
+  // return(npmle);
 }
 
 
@@ -57,7 +70,7 @@ void NP2prob (double *intmap, double *pf, int *nNPMLE,
       break;
     }
   } // if tau > max(intmap), then ii = *nNPMLE by default.
-  // timepoints should be only upto tau except Inf!! (o/w codes needs to be modified to limit the pfGrid)
+  // timepoints should be only upto tau except Inf!! (o/w the code needs to be modified to limit the pfGrid)
 
   double cdf[2 * (ii + 1)], cdfGrid[*ntime];
   double slope[2 * (ii + 1)];
@@ -82,7 +95,8 @@ void NP2prob (double *intmap, double *pf, int *nNPMLE,
 
     if (isfinite(intmap[2 * *nNPMLE - 1]) == 0) {
       // Rprintf("isfinite(intmap[last]) = %d\n", isfinite(intmap[2 * *nNPMLE - 1]));
-      if (1 - pf[*nNPMLE - 1] > 0.0001) {
+      if ((1 - pf[*nNPMLE - 1] > 0.0001) &
+          (*tau - intmap[2 * *nNPMLE - 2] > 0.0001)) {
         lambda = - intmap[2* *nNPMLE - 2] / (log(pf[*nNPMLE - 1]));
         pf2 = pf[*nNPMLE - 1] - exp(- *tau / lambda);
         slope[2*(*nNPMLE - 1)] =  pf2/(*tau - intmap[2 * *nNPMLE - 2]);
@@ -92,8 +106,8 @@ void NP2prob (double *intmap, double *pf, int *nNPMLE,
       }
     }
 
-/*
-Rprintf("cdf(1st row) = \n");
+
+/*Rprintf("cdf(1st row) = \n");
 for (i =0; i < ii + 1; ++i) Rprintf("%f ", cdf[2*i]);
 Rprintf("\ncdf(2nd row) = \n");
 for (i =0; i < ii + 1; ++i) Rprintf("%f ", cdf[2*i+1]);
@@ -101,8 +115,8 @@ Rprintf("\nslope (1st row) = \n");
 for (i =0; i < ii + 1; ++i) Rprintf("%f ", slope[2*i]);
 Rprintf("\nslope (2nd row) = \n");
 for (i =0; i < ii + 1; ++i) Rprintf("%f ", slope[2*i+1]);
-Rprintf("\n");
-*/
+Rprintf("\n");*/
+
   cdfGrid[0] = 0.0;
   pfGrid[0] = 0.0;
 
@@ -148,7 +162,7 @@ Rprintf("\n");*/
 
 void NPMLE (double *lr, int nLR, double *intmap, double *pf, int *nNPMLE,
             double *timepoints, int *ntime, double *tau, double *pfGrid) {
-  int i; //nObs = nLR
+  int i, isInf = 0; //nObs = nLR
 
 /* Rprintf("inside NPMLE\n lr[1,] = ");
 for (i = 0; i < nLR; ++i) Rprintf("%2.2f ",lr[2*i]);
@@ -164,7 +178,7 @@ Rprintf("\n"); */
   // LR matrix in R
   PROTECT(lrMat = allocMatrix(REALSXP, nLR, 2));   // making empty R matrix object
   double *lrMatReal = REAL(lrMat);                      // pointing to the real component of lrMat
-  if (nLR == 1) {
+  /*if (nLR == 1) {
     for (i = 0; i < nLR; ++i) {
       lrMatReal[i] = lr[0];   // filling in values
       lrMatReal[i + nLR] = lr[1];   // filling in values
@@ -173,6 +187,16 @@ Rprintf("\n"); */
     for (i = 0; i < nLR; ++i) {
       lrMatReal[i] = lr[2*i];   // filling in values
       lrMatReal[i + nLR] = lr[2*i + 1];   // filling in values
+    }
+  }*/
+  for (i = 0; i < nLR; ++i) {
+    lrMatReal[i] = lr[2*i];   // filling in values
+    lrMatReal[i + nLR] = lr[2*i + 1];   // filling in values
+  }
+  for (i = 0; i < nLR; ++i) {
+    if (lr[2*i + 1] == 1.0/0.0) {
+      isInf = 1;   // filling in values
+      break;
     }
   }
 
@@ -196,6 +220,10 @@ Rprintf("\n");*/
     intmap[2 * i] = REAL(getListElement(result, "intmap"))[2 * i]; // original dimension (2 x *nNPMLE)
     intmap[2 * i + 1] = REAL(getListElement(result, "intmap"))[2 * i + 1];
   }
+  if (isInf) intmap[2 * *nNPMLE + 1] = 1.0/0.0;
+  //EMICM sometimes incorrectly assigns the remaining probability to the final interval that is finite,
+  //even if there are unbounded intervals in the data (so all the mass shouldn't be allocated to a finite interval).
+  //See NPMLE_new.R line 41
 
 
 

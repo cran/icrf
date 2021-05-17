@@ -1,6 +1,6 @@
-ksmoothR <- function (x, y, bandwidth = 0.5,
-                      range.x = range(x), n.points = max(100L, length(x)), x.points,
-                      sumToOne = TRUE)
+# y are probability masses (not a density wrt x)
+ksmoothR <- function (x, y, bandwidth = 0.5, x.points,
+                      sumToOne = TRUE, range.x = range(x), n.points = max(100L, length(x)))
 {
   if (missing(y) || is.null(y))
     stop("numeric y must be supplied.\nFor density estimation use density()")
@@ -36,7 +36,16 @@ isdSm <-
 
   if (any(grid.smooth < t0)) {stop("grid.smooth should be always no less than t0.")}
   if (is.null(npmle)) { # if LR is provided, npmle is calculated.
-    npmle <- Icens::EMICM(LR)
+    npmle <- EMICM(LR)
+    p = dim(npmle$intmap)[2]
+    if (is.infinite(max(LR[, 2]))) {
+      # EMICM sometimes incorrectly assigns the remaining probability to the final interval that is finite,
+      # even if there are unbounded intervals in the data (so all the mass shouldn't be allocated to a finite interval).
+      # See npmle.c lines 183 and 210.
+      npmle$intmap[2, p] = Inf
+    }
+  } else {
+    p = dim(npmle$intmap)[2]
   }
   if (is.null(time_interest)) {
     time_interest <- sort(unique(c(t0, unlist(LR), tau)))
@@ -46,7 +55,6 @@ isdSm <-
   # only intmap and pf is required.
   #n <- dim(LR)[1]
   #print(npmle)
-  p = dim(npmle$intmap)[2]
   t0 = min(t0, npmle$intmap[1, 1])
   t.end = npmle$intmap[2, p]
   # tau = max(tau, if (is.finite(t.end)) {t.end}) # fix tau less than Inf
@@ -57,19 +65,19 @@ isdSm <-
     r1 = suppressWarnings(max(which(s >= intmap[1, ])))
     r2 = suppressWarnings(min(which(s <= intmap[2, ])))
     if (r1 == - Inf) {return (0)}  # if no matches, then it means zero prob.
-    if (r2 == - Inf) {return (1)}  # if no matches, then it means last interval (F = 1).
-    if (r1 < r2) {return(sum(pf[1:r1]))}  # if time is not in the interval of prob mass, simply return r1_th cum density.
+    if (is.infinite(r2)) {return (1)}  # if no matches, then it means the last interval (F = 1).
+    if (r1 < r2 & is.finite(r2)) {return(sum(pf[1:r1]))}  # if time is not in the interval of prob mass, simply return r1_th cum density.
 
     # look at r1_th column
     p.cum = if (r1 == 1) {0} else {sum(pf[1:(r1-1)])}
     p.int = pf[r1]
     bgn = intmap[1, r1]
     interval = intmap[2, r1] - bgn
-    if (is.infinite(interval)) {
+    if (is.infinite(interval)| is.infinite(r2)) {
       lambda = - bgn / log(p.int)
       return(1 - exp(-s/lambda)) # exponential tail
     } else {
-      return(p.cum + p.int * (s-bgn)/interval)
+      return(p.cum + ifelse(interval > 0, p.int * (s-bgn)/interval, 0))
     }
   }
   Fn = Vectorize(Fn)
@@ -77,7 +85,9 @@ isdSm <-
     iqr =
       lin.interpolate(0.75, Fn(time_interest), time_interest)["y.interpolate"] -
       lin.interpolate(0.25, Fn(time_interest), time_interest)["y.interpolate"]
+    if (iqr > tau/2) iqr = tau/2
     bandwidth = 0.5 * as.numeric(iqr) * dim(LR)[1]^(-0.2)
+    # bandwidth = as.numeric(iqr) * dim(LR)[1]^-0.5
   }
   # print(iqr); print(bandwidth)
   tau.grid = tau + bandwidth * 4
@@ -129,14 +139,14 @@ if (FALSE) {
   r = c(4, 5, Inf, Inf, Inf)
 
   isdSm(l, r, seq(0,10,by=.5), tau = 10, bandwidth = 0.4)
-  Icens::EMICM(cbind(l,r))
+  EMICM(cbind(l,r))
 }
 
 
 cdf.mass <- function(L, R, Fn, t0 = Fn$x[1], tau = Fn$x[length(Fn$x)],
                      t.points = sort(unique(c(t0, L, R, tau)))) {
   # data: where monitoring times are extracted from.
-  Fn <- rbind(Fn, c(tau, 1))
+  # Fn <- rbind(Fn, c(tau, 1)) # This causes a problem: cdf at tau may not necessarily 1, and if Fn has x values of greater than tau, the order is mixed up.
   t0 <- t0
   tau <- tau
   t.points <- t.points
@@ -158,7 +168,7 @@ cond.prob <- function(L, R, cdfs) {
   # cdfs: cdf.mass() object
   cond <- ifelse(L < cdfs$t.points & R >= cdfs$t.points, cdfs$mass, 0)
   if (sum(cond) == 0) {
-    cond[which.max(R >= cdfs$t.points)] <- 1
+    cond[max(which(R >= cdfs$t.points))] <- 1 #changes made. Feb 2021 (which.max was incorrect which always returns 1, but in fact the last point is needed.)
   } else {
     cond <- cond / sum(cond)
   }

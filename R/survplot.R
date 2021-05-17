@@ -54,7 +54,7 @@ survplot <- function(x, i, smooth = TRUE, timepoints = NULL,
       stop("This function only works for objects of class `icrf' or a matrix")
     }
   } else {
-    x <- if(smooth) x$predicted else x$predicted.Sm
+    x <- if(smooth) x$predicted.Sm else x$predicted
   }
   if (is.null(timepoints)) timepoints <- attr(x, "time")
   if (is.null(timepoints)) stop("Either the time attribute is missing in x or timepoints is not supplied.")

@@ -4,8 +4,15 @@
 \alias{measure}
 \title{Prediction error measures}
 \usage{
-measure(surv.hat, timepoints, tau, method = c("all", "imse",
-  "int.error"), L = NULL, R = NULL, surv.true = NULL)
+measure(
+  surv.hat,
+  timepoints,
+  tau,
+  method = c("all", "imse", "int.error"),
+  L = NULL,
+  R = NULL,
+  surv.true = NULL
+)
 }
 \arguments{
 \item{surv.hat}{the estimated survival curve matrix with rows representing
@@ -74,7 +81,7 @@ rats.icrf <-
   icrf(Surv(L, R, type = "interval2") ~ dose.lvl + weight + male + cage.no,
        data = rat2, ntree = 2, nfold = 2)
 
-measure(rats.icrf$predicted.Sm, timepoints = rats.icrf$time.points,
+measure(rats.icrf$predicted.Sm, timepoints = rats.icrf$time.points.smooth,
         tau = rats.icrf$tau, method = "imse", L = L, R = R)
 }
 }
@@ -83,6 +90,6 @@ measure(rats.icrf$predicted.Sm, timepoints = rats.icrf$time.points,
  recursive forests"}
 }
 \author{
-Hunyong Cho hunycho@live.unc.edu, based on codes and documents of
+Hunyong Cho hunycho@live.unc.edu, based on the code and the documents of
 \code{randomForest} by Andy Liaw and Matthew Wiener.
 }
