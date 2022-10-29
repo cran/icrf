@@ -18,7 +18,9 @@ SEXP getListElement(SEXP list, const char *str)
 SEXP EMICM (SEXP A) {
   SEXP statsPackage;
   SEXP e;
-  PROTECT(e = lang2(install("getNamespace"), ScalarString(mkChar("icrf"))));
+  SEXP sGetNamespace = install("getNamespace");
+  PROTECT(e = lang2(sGetNamespace, ScalarString(mkChar("icrf"))));
+
   PROTECT(statsPackage = eval(e, R_GlobalEnv));
 
   SEXP npmle;
